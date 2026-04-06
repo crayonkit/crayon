@@ -19,6 +19,7 @@ go get github.com/ph4mished/crayon
 - Comprehensive Styles: Bold, italic, underline, blink, reverse, hidden, strike-through.
 - Granular Resets: Individual and full reset codes for precise control.
 - No Escape: Texts in [] that aren't colors/styles are left as it is.
+- Inline Padding: Left and right alignment, declared directly on placeholders.
 - Cross-Platform: Full color support on Windows (Windows Terminal, cmd), Linux and macOS.
 
 
@@ -32,6 +33,14 @@ The library follows a template-first approach: parse color templates once with o
 ## Color Toggling
 
 Respects the NO_COLOR environment variable and detects when output is redirected. It can be manually controlled to suit user preference.
+
+---
+
+## Padding & Alignment
+When printing repeated lines of output, values rarely line up on their own.
+Padding fixes that by reserving a fixed width for each value so columns stay aligned across every print call.
+
+Padding is applied directly on placeholders
 
 ---
 
@@ -77,6 +86,7 @@ func main() {
 # Output
 
 ![quick_start](images/quick_start_merge.png)
+
 ---
 
 # Complete Usage Examples
@@ -112,6 +122,7 @@ func main() {
 # Output
 
 ![basic_index_merge](images/basic_index_merge.png)
+
 ---
 
 ## Basic Text Coloring
@@ -153,6 +164,74 @@ crayon.Parse("[fg=214]Orange from 256-color palette[reset]").Println()
 crayon.Parse("[bg=196]Red background from palette[reset]").Println()
 }
 ```
+
+### Padding Example1
+
+```go
+package main
+
+import (
+    "github.com/ph4mished/crayon"
+)
+
+func main(){
+    row := crayon.Parse("[fg=cyan bold][0:<20][fg=yellow][1:>10][reset]")
+    
+    row.Println("Alice", "admin")
+    row.Println("Bob", "user")
+    row.Println("Charlie", "guest")
+}
+```
+# Output
+
+![pad_row](images/pad_row_merge.png)
+---
+
+### Padding Example2
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/ph4mished/crayon"
+)
+  var(
+  header = crayon.Parse("[bold fg=cyan][0][reset]")
+  command  = crayon.Parse("[fg=yellow][0:<25][fg=green][1][reset]")
+  flag = crayon.Parse("[fg=yellow][0][reset], [fg=yellow][1:<20] [fg=green][2][reset]")
+  )
+
+func ShowHelp() {
+    header.Println("MyApp Help")
+    fmt.Println()
+    
+    header.Println("Usage:")
+    fmt.Println("  myapp [command] [options]")
+    fmt.Println()
+    
+    header.Println("Commands:")
+    command.Println("start", "Start the application")
+    command.Println("stop", "Stop the application")
+    command.Println("status", "Check application status")
+    command.Println()
+    
+    header.Println("Options:")
+    flag.Println("-h", "--help", "Show this help")
+    flag.Println("-v", "--version", "Show version")
+    flag.Println("-d", "--debug", "Enable debug mode")
+}
+
+func main(){
+	ShowHelp()
+}
+
+```
+# Output
+
+![help_flag](images/help_flag_merge.png)
+---
+
 
 ## Text Styles
 
@@ -685,6 +764,14 @@ Manual concatenation: 2.6698368s
 | `bg=rgb(RR,GG,BB)` | RGB color for background |
 | `fg=NNN` | 256-color palette (0-255) for foreground |
 | `bg=NNN` | 256-color palette (0-255) for background |
+
+
+## Padding Syntax Reference
+| Syntax | Effect |
+|---------|--------|
+| `[0:<20]` | left align, placeholder 0, width 20 |
+| `[0:>10]` | right align, placeholder 0, width 10 |
+
 
 
 
