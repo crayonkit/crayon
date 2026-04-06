@@ -3,7 +3,7 @@ updates:
   - package-ecosystem: "gomod"
     directory: "/" #location of go.mod
     schedule:
-      interval: "weekly" #"weekly"
+      interval: "daily" #"weekly"
       #day: "monday"
     open-pull-requests-limit: 10
     labels:
