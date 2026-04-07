@@ -1,20 +1,20 @@
 
 # Crayon
 
-A comprehensive Go library for adding colors, styles, and formatting to terminal output with support for multiple color formats and truecolor detection. [This is a Go port of the Spectra color library](https://github.com/ph4mished/spectra)
+A comprehensive Go library for adding colors, styles, and formatting to terminal output with support for multiple color formats and truecolor detection. [This is a Go port of the Spectra color library](https://github.com/phamio/spectra)
 
 
 # Installation
 
 ```bash
-go get github.com/ph4mished/crayon
+go get github.com/phamio/crayon
 ```
 
 # Features
 
 - Multiple Color Systems: Named colors, hex codes, RGB, 256-color palette.
 - TrueColor Detection: Automatic detection of terminal truecolor support.
-- Terminal Safe: Graceful fallbacks when color not supported(no-color fallback).
+- Terminal Safe: Graceful fallbacks when color not supported(truecolor-to-256-palette fallback).
 - Simple API: Easy-to-use functions for text styling and coloring.
 - Comprehensive Styles: Bold, italic, underline, blink, reverse, hidden, strike-through.
 - Granular Resets: Individual and full reset codes for precise control.
@@ -22,6 +22,7 @@ go get github.com/ph4mished/crayon
 - Inline Padding: Left and right alignment, declared directly on placeholders.
 - Cross-Platform: Full color support on Windows (Windows Terminal, cmd), Linux and macOS.
 
+---
 
 # Core Concepts
 
@@ -33,8 +34,6 @@ The library follows a template-first approach: parse color templates once with o
 ## Color Toggling
 
 Respects the NO_COLOR environment variable and detects when output is redirected. It can be manually controlled to suit user preference.
-
----
 
 ## Padding & Alignment
 When printing repeated lines of output, values rarely line up on their own.
@@ -51,7 +50,7 @@ package main
 
 import (
     "fmt"
-    "github.com/ph4mished/crayon"
+    "github.com/phamio/crayon"
 )
 
 func main() {
@@ -61,11 +60,6 @@ func main() {
     reset := crayon.ParseColor("reset")
     
     fmt.Printf("%sThis is red and bold!%s\n", red + bold, reset)
-
-    // Check if a color is supported
-    if crayon.IsSupportedColor("fg=#FF0000") {
-        fmt.Println("Hex colors are supported!")
-    }
     
     // Or use the main functions
     crayon.Parse("[fg=blue]Hello in blue![reset]").Println()
@@ -81,6 +75,17 @@ func main() {
     template.Println("File not found")
     template.Println("Permission denied")
     template.Println("Network timeout")
+
+    //padding or alignment
+    row := crayon.Parse("[fg=cyan bold][0:<20][fg=yellow][1:>10][reset]")
+    
+    row.Println("Alice", "admin")
+    row.Println("Bob", "user")
+    row.Println("Charlie", "guest")
+
+    //escapes
+    //escapes are enclosed in [<content>] where "content" is the word to be escaped
+    escapes := crayon.Parse("[fg=cyan][<fg=red>]Hello World[reset]")
 }
 ```
 # Output
@@ -98,7 +103,7 @@ package main
 
 import (
     "fmt"
-    "github.com/ph4mished/crayon"
+    "github.com/phamio/crayon"
 )
 
 func main() {
@@ -129,7 +134,7 @@ func main() {
 ```go
 package main
 
-import "github.com/ph4mished/crayon"
+import "github.com/phamio/crayon"
 
 func main(){
   // Simple colored text
@@ -148,7 +153,7 @@ func main(){
 ```go
 package main
 
-import "github.com/ph4mished/crayon"
+import "github.com/phamio/crayon"
 
 func main(){
 // Hex colors (requires truecolor support)
@@ -171,7 +176,7 @@ crayon.Parse("[bg=196]Red background from palette[reset]").Println()
 package main
 
 import (
-    "github.com/ph4mished/crayon"
+    "github.com/phamio/crayon"
 )
 
 func main(){
@@ -194,7 +199,7 @@ package main
 
 import (
     "fmt"
-    "github.com/ph4mished/crayon"
+    "github.com/phamio/crayon"
 )
   var(
   header = crayon.Parse("[bold fg=cyan][0][reset]")
@@ -238,7 +243,7 @@ func main(){
 ```go
 package main
 
-import "github.com/ph4mished/crayon"
+import "github.com/phamio/crayon"
 
 func main(){
     // Combine styles
@@ -264,7 +269,7 @@ package main
 import (
     "fmt"
     "os"
-    "github.com/ph4mished/crayon"
+    "github.com/phamio/crayon"
 )
 
 func main() {
@@ -305,7 +310,7 @@ package main
 import (
     "fmt"
     "time"
-    "github.com/ph4mished/crayon"
+    "github.com/phamio/crayon"
 )
 
 func main() {
@@ -362,7 +367,7 @@ package main
 import (
     "fmt"
     "strings"
-    "github.com/ph4mished/crayon"
+    "github.com/phamio/crayon"
 )
 
 func main() {
@@ -412,7 +417,7 @@ func main() {
 // file: styles/styles.go - Define your color scheme
 package styles
 
-import "github.com/ph4mished/crayon"
+import "github.com/phamio/crayon"
 
 var Toggle = crayon.NewColorToggle()
 
@@ -501,7 +506,7 @@ package main
 import(
     "fmt"
     "os"
-    "github.com/ph4mished/crayon"
+    "github.com/phamio/crayon"
 )
 // Best practice for CLI applications
 func main() {
@@ -552,7 +557,7 @@ package main
 
 import (
     "fmt"
-    "github.com/ph4mished/crayon"
+    "github.com/phamio/crayon"
 )
 
 func main() {
@@ -637,7 +642,7 @@ package main
 import (
     "fmt"
     "time"
-    "github.com/ph4mished/crayon"
+    "github.com/phamio/crayon"
 )
 
 func main() {
@@ -769,8 +774,9 @@ Manual concatenation: 2.6698368s
 ## Padding Syntax Reference
 | Syntax | Effect |
 |---------|--------|
-| `[0:<20]` | left align, placeholder 0, width 20 |
-| `[0:>10]` | right align, placeholder 0, width 10 |
+| `[a:bc]` | a=index(placeholder), b=direction, c=width|
+| `[0:<20]` | placeholder=0, direction=left align, width=20 |
+| `[0:>10]` | placeholder=0, direction=right align, placeholder 0, width=10 |
 
 
 
@@ -788,15 +794,13 @@ Manual concatenation: 2.6698368s
 
 1. Terminal Dependency: Colors only work in terminals that support ANSI escape codes(Unix/Linux/Windows platforms)
 2. TrueColor Requirement: Hex and RGB colors require terminal with truecolor support
-3. Style Support: Some styles (blink, double underline) may not work in all terminals
-4. Color Detection: Fallback from truecolor to 256-color not yet implemented
+3. Style Support: Some terminals lack support for certain styles (blink, double underline).
 
 # Platform Support
 
 - Linux/macOS terminals (full support)
 - Windows Terminal/WSL, CMD, Powershell (full support)
 - Legacy Windows CMD (limited - some styles may not render)
-- iTerm2, GNOME Terminal, Kitty (not tested yet)
 
 # Contributing
 
@@ -816,7 +820,7 @@ We welcome contributions! Here's how you can help:
 
 ```bash
 # Clone the repository
-git clone https://github.com/ph4mished/crayon.git
+git clone https://github.com/phamio/crayon.git
 cd crayon
 
 # Run tests
@@ -827,8 +831,7 @@ go test
 # Areas Needing Improvement
 
 1. Better Windows compatibility
-2. 256-color fallback for truecolor
-3. Performance optimization
+2. Performance optimization
 
 
 # License
@@ -837,7 +840,9 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 # Acknowledgments
 
-- ANSI escape code specifications
+- ANSI escape code  specifications
+- Thanks to [kurahaupo](https://gist.github.com/kurahaupo/6ce0eaefe5e730841f03cb82b061daa2) for explanations on true color.
+- Thanks to [gagbo](https://gist.github.com/gagbo/7943c9a71cab22b641d2904a6d59ec3a) for the  truecolor-to-256-color-palette gist used as the base for crayon true color fallback.
 - The Go community for testing and feedback
 - All contributors who have helped improve this library
 

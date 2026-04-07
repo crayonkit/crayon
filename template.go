@@ -4,48 +4,51 @@ package crayon
 
 import (
 	"fmt"
+	"golang.org/x/term"
+	"io"
 	"os"
 	"strconv"
 	"strings"
 	"unicode"
-	"io"
-	"golang.org/x/term"
 )
 
 type TempPart struct {
-  Text string
-  Index int
-  FormatStr string
+	Text      string
+	Index     int
+	FormatStr string
 }
 
 type CompiledTemplate struct {
-  Parts []TempPart
-  TotalLength int
+	Parts       []TempPart
+	TotalLength int
 }
 
 type ColorToggle struct {
-  EnableColor bool
+	EnableColor bool
 }
-
 
 //=============================
 // COLOR TOGGLE
 //=============================
 
 func autoDetect() bool {
-  if _, exists := os.LookupEnv("NO_COLOR"); exists{
-    return false	
-  }
-  return term.IsTerminal(int(os.Stdout.Fd()))
+	if _, exists := os.LookupEnv("NO_COLOR"); exists {
+		return false
+	}
+	return term.IsTerminal(int(os.Stdout.Fd()))
 }
 
-
+//for escapes, it will be [<content>] so that anyone can use eg. [12:30] (time literal) without getting errors.
+//such escape will be used for color and styles too
+//Escapes
+// [[content]] //needs lookahead and a whole lot of complexities.
+// \[content\]  //just prefix and suffix look
 
 //=============================
 // PARSE - LOOP
 //=============================
 
-func parseLoop(input string, enableColor bool) ([]TempPart, string){
+func parseLoop(input string, enableColor bool) ([]TempPart, string) {
 	var (
 		parts           []TempPart
 		currentText     string
@@ -53,13 +56,13 @@ func parseLoop(input string, enableColor bool) ([]TempPart, string){
 		inReadSequence  bool
 	)
 
-	for i, ch := range(input){
+	for i, ch := range input {
 		char := string(ch)
 
 		switch {
 		case char == "[" && !inReadSequence:
 			parts, currentText, contentSequence, inReadSequence = handleOpenBracket(i, input, parts, currentText)
-			
+
 		case ch == ']' && inReadSequence:
 			parts, inReadSequence = handleCloseBracket(contentSequence, parts, enableColor)
 			contentSequence = ""
@@ -74,26 +77,26 @@ func parseLoop(input string, enableColor bool) ([]TempPart, string){
 	return parts, currentText
 }
 
-
-
 //=============================
 // PARSE - BRACKET HANDLERS
 //=============================
 
 func handleOpenBracket(i int, input string, parts []TempPart, currentText string) ([]TempPart, string, string, bool) {
 	//check if the next value is "["
-    // [[fg=color]] should never be an escape
-    //consider first '[' as a text, move until, content is found. 
-	if i+1 < len(input) && input[i+1] == '['{
-	  currentText += "["
-	  return parts, currentText, "", false
+	// [[fg=color]] should never be an escape, because first ']' terminates early without lookahead
+	//besides escape is just meant to be an opt in
+
+	//consider first '[' as a text, move until, content is found.
+	if i+1 < len(input) && input[i+1] == '[' {
+		currentText += "["
+		return parts, currentText, "", false
 	}
 	//flush current text before entering sequence
 	parts = flushText(parts, currentText)
 	return parts, "", "", true
 }
 
-func handleCloseBracket(contentSequence string, parts []TempPart, enableColor bool) ([]TempPart, bool){
+func handleCloseBracket(contentSequence string, parts []TempPart, enableColor bool) ([]TempPart, bool) {
 	allWords := strings.Fields(contentSequence)
 
 	if isColorSequence(allWords) {
@@ -113,7 +116,7 @@ func isColorSequence(words []string) bool {
 		return false
 	}
 	for _, w := range words {
-		if !IsSupportedColor(w){
+		if !isSupportedColor(w) {
 			return false
 		}
 	}
@@ -121,7 +124,7 @@ func isColorSequence(words []string) bool {
 }
 
 func handleColorSequence(parts []TempPart, words []string, enableColor bool) []TempPart {
-	if enableColor{
+	if enableColor {
 		for _, w := range words {
 			parts = append(parts, TempPart{Text: ParseColor(w), Index: -1, FormatStr: ""})
 		}
@@ -132,14 +135,19 @@ func handleColorSequence(parts []TempPart, words []string, enableColor bool) []T
 }
 
 func handleNonColorSequence(parts []TempPart, contentSequence string) []TempPart {
-	if isValidPlaceholder(contentSequence){
+	if isValidPlaceholder(contentSequence) {
 		return handlePlaceholder(parts, contentSequence)
 	}
 
 	//for padded placeholders
-	if strings.Contains(contentSequence, ":") {
-			return handlePaddedPlaceholder(parts, contentSequence)
-		}
+	if strings.Contains(contentSequence, ":") && !strings.HasPrefix(contentSequence, "<") && !strings.HasSuffix(contentSequence, ">") {
+		return handlePaddedPlaceholder(parts, contentSequence)
+	}
+
+	//for escapes
+	if strings.HasPrefix(contentSequence, "<") && strings.HasSuffix(contentSequence, ">") {
+		return handleEscape(parts, contentSequence)
+	}
 	//unrecognized -  pass through as literal
 	return append(parts, TempPart{Text: "[" + contentSequence + "]", Index: -1, FormatStr: ""})
 }
@@ -147,24 +155,23 @@ func handleNonColorSequence(parts []TempPart, contentSequence string) []TempPart
 //=============================
 // PARSE - PLACEHOLDER
 //=============================
-//Monolithic Parse() should be divided into subsections of funcs so that they can be reused for escapes and other things
 //extract placeholders
-//placeholders will support padding too. [0:<20] = right alignment, [0:>20] = left align
+//placeholders will support padding too. [0:<20] = left alignment, [0:>20] = right align
 //Overflow handling will slow down crayon. I'm still on the fence of throwing it away or using it
 //It will slow down crayon because calculation will be moved to apply, thats not the work of apply
 //[0:<20!] = right alignment  with truncation, [0:>20~] = left align with elipsis(...),
 //[0:<20?] = right alignment  with warn to stderr
 
-func isValidPlaceholder(input string) bool{
-  return len(input) > 0 && allDigits(input)
+func isValidPlaceholder(input string) bool {
+	return len(input) > 0 && allDigits(input)
 }
 
 func handlePlaceholder(parts []TempPart, contentSequence string) []TempPart {
-    //decided to make it flexible and accept more indices but its still prone to overflow
-      //needs a digit boundary guard	
-	  index, err := strconv.Atoi(contentSequence)
-	  if err == nil && index >= 0 && index <= 999 {
-      return append(parts, TempPart{Text: "", Index: index, FormatStr: ""})
+	//decided to make it flexible and accept more indices but its still prone to overflow
+	//needs a digit boundary guard
+	index, err := strconv.Atoi(contentSequence)
+	if err == nil && index >= 0 && index <= 999 {
+		return append(parts, TempPart{Text: "", Index: index, FormatStr: ""})
 	}
 	//out of range -treat as literal
 	return append(parts, TempPart{Text: "[" + contentSequence + "]", Index: -1, FormatStr: ""})
@@ -180,48 +187,63 @@ func handlePaddedPlaceholder(parts []TempPart, contentSequence string) []TempPar
 	padStr := splitWord[1]
 	//parse indexStr
 	index, err := strconv.Atoi(indexStr)
-	  if err != nil || index < 0 || index > 999 {
-      return append(parts, TempPart{Text: "[" + contentSequence + "]", Index: -1, FormatStr: ""})
-	} 
+	if err != nil || index < 0 || index > 999 {
+		return append(parts, TempPart{Text: "[" + contentSequence + "]", Index: -1, FormatStr: ""})
+	}
 
 	//parse the padStr
 	align, width, err := parseAlignWidth(padStr)
 	if err != nil {
-		fmt.Println("Error: ", err)
-		//return append(parts, TempPart{Text: "[" + contentSequence + "]", Index: -1, FormatStr: ""})
-		return nil
+		fmt.Fprintln(os.Stderr, "Error:", err)
+		return append(parts, TempPart{Text: "[" + contentSequence + "]", Index: -1, FormatStr: ""})
 	}
 	return append(parts, TempPart{Text: "", Index: index, FormatStr: buildFormatStr(align, width)})
 }
 
+// =============================
+// PARSE - ESCAPE
+// =============================
+// [<content>] => <content>
+// strip it of its angle brackets
+func handleEscape(parts []TempPart, contentSequence string) []TempPart {
+	contentSequence = strings.TrimPrefix(contentSequence, "<")
+	contentSequence = strings.TrimSuffix(contentSequence, ">")
+	return append(parts, TempPart{Text: "[" + contentSequence + "]", Index: -1, FormatStr: ""})
 
-//=============================
+}
+
+// =============================
 // PARSE - HELPERS
-//=============================
-func parseAlignWidth(input string) (rune, int, error){
+// =============================
+func parseAlignWidth(input string) (rune, int, error) {
+	//'input' is aleady stripped of its placeholder
 	if len(input) < 2 {
-		return 0, 0, fmt.Errorf("invalid padding specification '%s'", input)
+		return 0, 0, fmt.Errorf("padding spec: too short - expected '<N' or '>N' (got '%s')", input)
 	}
 	align := rune(input[0])
-	widthStr := input[1:]
-	
-	width, err := strconv.Atoi(widthStr)
-	if err != nil || width <= 0 {
-		return 0, 0, fmt.Errorf("invalid width: negative width not supported '%d'", width)
+	if align != '<' && align != '>' {
+		return 0, 0, fmt.Errorf("padding spec: expected '<' or '>', got '%c'", align)
 	}
 
-	switch align {
-	case '<', '>':
-		return align, width, nil
-	default:
-		return 0, 0, fmt.Errorf("invalid alignment char '%s'", string(align))
+	widthStr := input[1:]
+	width, err := strconv.Atoi(widthStr)
+	if err != nil {
+		return 0, 0, fmt.Errorf("padding spec: width must be a number (got '%s')", widthStr)
 	}
+
+	if width <= 0 {
+		return 0, 0, fmt.Errorf("padding spec: must be greater than zero (got %d)", width)
+	}
+
+	return align, width, nil
 }
 
 func buildFormatStr(align rune, width int) string {
-	switch align{
+	switch align {
+	//left align
 	case '<':
 		return fmt.Sprintf("%%-%ds", width)
+		//right align
 	case '>':
 		return fmt.Sprintf("%%%ds", width)
 	}
@@ -236,50 +258,47 @@ func flushText(parts []TempPart, currentText string) []TempPart {
 }
 
 func allDigits(s string) bool {
-  for _, r := range s{
-	if !unicode.IsDigit(r){
-	  return false
+	for _, r := range s {
+		if !unicode.IsDigit(r) {
+			return false
+		}
 	}
-  }
-  return true
+	return true
 }
 
-  
 //=============================
 // APPLY
 //=============================
 
-//apply will be a private func
+// apply will be a private func
 func (temp CompiledTemplate) apply(args ...any) string {
-  //Calculate estimated size for optimization
-  var totalArgLength int
-  for _, arg := range args{
-	totalArgLength += len(fmt.Sprint(arg))
-  }
-
-  estimatedSize := temp.TotalLength + totalArgLength
-  var result strings.Builder
-  result.Grow(estimatedSize)
-
-  for _, part := range temp.Parts{
-	if part.Index < 0{
-	  result.WriteString(part.Text)
-	} else if part.Index < len(args) {
-		value := fmt.Sprint(args[part.Index])
-		if part.FormatStr != ""{
-			value = fmt.Sprintf(part.FormatStr, value)
-		}
-		result.WriteString(value)
+	//Calculate estimated size for optimization
+	var totalArgLength int
+	for _, arg := range args {
+		totalArgLength += len(fmt.Sprint(arg))
 	}
-  }
-  return result.String()
+
+	estimatedSize := temp.TotalLength + totalArgLength
+	var result strings.Builder
+	result.Grow(estimatedSize)
+
+	for _, part := range temp.Parts {
+		if part.Index < 0 {
+			result.WriteString(part.Text)
+		} else if part.Index < len(args) {
+			value := fmt.Sprint(args[part.Index])
+			if part.FormatStr != "" {
+				value = fmt.Sprintf(part.FormatStr, value)
+			}
+			result.WriteString(value)
+		}
+	}
+	return result.String()
 }
 
-
-
-//=======================
+// =======================
 // PRINT
-//=======================
+// =======================
 func (temp CompiledTemplate) Println(args ...any) {
 	fmt.Println(temp.apply(args...))
 }
@@ -288,12 +307,9 @@ func (temp CompiledTemplate) Print(args ...any) {
 	fmt.Print(temp.apply(args...))
 }
 
-
-
-
-//=======================
+// =======================
 // EPRINT
-//=======================
+// =======================
 func (temp CompiledTemplate) Eprintln(args ...any) {
 	fmt.Fprintln(os.Stderr, temp.apply(args...))
 }
@@ -302,23 +318,20 @@ func (temp CompiledTemplate) Eprint(args ...any) {
 	fmt.Fprint(os.Stderr, temp.apply(args...))
 }
 
-
-
-//=======================
+// =======================
 // FPRINT
-//=======================
+// =======================
 func (temp CompiledTemplate) Fprintln(w io.Writer, args ...any) (n int, err error) {
 	return fmt.Fprintln(w, temp.apply(args...))
 }
 
-func (temp CompiledTemplate) Fprint(w io.Writer, args ...any) (n int, err error){
+func (temp CompiledTemplate) Fprint(w io.Writer, args ...any) (n int, err error) {
 	return fmt.Fprint(w, temp.apply(args...))
 }
 
-
-//=======================
+// =======================
 // SPRINT
-//=======================
+// =======================
 func (temp CompiledTemplate) Sprintln(args ...any) string {
 	return fmt.Sprintln(temp.apply(args...))
 }

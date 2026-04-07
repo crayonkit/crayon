@@ -1,12 +1,14 @@
 //go:build windows
-//This file is meant for windows only
+
 package crayon
+
+//This file is meant for windows only
 
 import (
 	"golang.org/x/sys/windows"
 )
 
-func init(){
+func init() {
 	stdout := windows.Handle(windows.Stdout)
 	var mode uint32
 	if err := windows.GetConsoleMode(stdout, &mode); err != nil {

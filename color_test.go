@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestExample(t *testing.T){
+func TestExample(t *testing.T) {
 	tempAnsi := Parse("FOR ANSI: [bold fg=blue]Hello[reset]")
 	temp256 := Parse("FOR 256: [bold fg=115]Hello[reset]")
 	tempHex := Parse("FOR HEX: [bold fg=#AABBCC]Hello[reset]")
@@ -17,7 +17,7 @@ func TestExample(t *testing.T){
 	tempRGB.Println()
 }
 
-func TestWithToggle(t *testing.T){
+func TestWithToggle(t *testing.T) {
 	toggle := NewColorToggle(false)
 
 	tempAnsi := toggle.Parse("FOR ANSI: [bold fg=blue]Hello[reset]")
@@ -28,11 +28,11 @@ func TestWithToggle(t *testing.T){
 	tempAnsi.Println()
 	temp256.Println()
 	tempHex.Println()
-	tempRGB.Println()	
+	tempRGB.Println()
 
 }
 
-func TestForInterpolation(t *testing.T){
+func TestForInterpolation(t *testing.T) {
 	tempAnsi := Parse("FOR ANSI: [bold fg=blue]Hello [fg=yellow][0][reset]")
 	temp256 := Parse("FOR 256: [bold fg=115]Hello [fg=13][0][reset]")
 	tempHex := Parse("FOR HEX: [bold fg=#AABBCC]Hello [fg=#AAFFCC][0][reset]")
@@ -41,7 +41,7 @@ func TestForInterpolation(t *testing.T){
 	tempAnsi.Println("World")
 	temp256.Println("World")
 	tempHex.Println("World")
-	tempRGB.Println("World")	
+	tempRGB.Println("World")
 
 }
 

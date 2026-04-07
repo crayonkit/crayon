@@ -5,7 +5,7 @@ import (
 )
 
 func main(){
-    row := crayon.Parse("[fg=cyan bold][0:<20][fg=yellow][1:>10][reset]")
+    row := crayon.Parse("[fg=cyan bold][0:<20][fg=yellow][1:<10][reset]")
     
     row.Println("Alice", "admin")
     row.Println("Bob", "user")
