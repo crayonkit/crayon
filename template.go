@@ -4,7 +4,7 @@ package crayon
 
 import (
 	"fmt"
-	"golang.org/x/term"
+	//"golang.org/x/term"
 	"io"
 	"os"
 	"strconv"
@@ -23,20 +23,7 @@ type CompiledTemplate struct {
 	TotalLength int
 }
 
-type ColorToggle struct {
-	EnableColor bool
-}
 
-//=============================
-// COLOR TOGGLE
-//=============================
-
-func autoDetect() bool {
-	if _, exists := os.LookupEnv("NO_COLOR"); exists {
-		return false
-	}
-	return term.IsTerminal(int(os.Stdout.Fd()))
-}
 
 
 //for escapes, it will be [<content>] so that anyone can use eg. [12:30] (time literal) without getting errors.

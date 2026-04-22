@@ -1,5 +1,14 @@
 package crayon
 
+import (
+	//"fmt"
+	"golang.org/x/term"
+	//"io"
+	"os"
+	//"strconv"
+	//"strings"
+	//"unicode"
+)
 
 type ColorToggle struct {
 	EnableColor bool
